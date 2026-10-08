@@ -1,10 +1,12 @@
+// DatabaseManager is responsible of connecting and managing Database logic
+
 #pragma once
 
 #include <Arduino.h>
 #include "Secrets.h"
 #include <Firebase_ESP_Client.h>
-#include <addons/TokenHelper.h>
-#include <addons/RTDBHelper.h>
+
+
 
 
 extern char g_macAddress[13];
@@ -22,6 +24,7 @@ private:
 
     TaskHandle_t _databaseTaskHandle = nullptr;
 
+// Arrays of the Database's paths
     char _databaseUserPath[128] = {0};  // users/<databaseUID>
     char _databaseDevicePath[192] = {0}; // users/<databaseUID>/<deviceMACAdress>
     char _databasePingPath[192] = {0}; // users/<databaseUID>/<deviceMACAdress>/online
@@ -35,18 +38,18 @@ private:
 
     static void s_databaseTask(void *arg);
 
-    void setupFirebase();
+    void setupFirebase(); 
 
-    void uploadHeartbeat(); // does nothing atp, should upload periodical timestamps
+    void uploadHeartbeat(); // Does nothing atp, should upload periodical timestamps
 
-    void listenForDatabaseCommands();
+    void listenForDatabaseCommands(); // Listens for changes in the Database
 
-    void executeFactoryReset();
+    void executeFactoryReset(); // Deletes the saved WiFi credentials and restarts the ESP so it goes through the BLE and WiFi configurations again.
 
 
 public:
 
-    void pingRTDB();
+    void pingRTDB(); // Pings the Realtime Database 
 
     void uploadSensorData(int sensorValue);
 

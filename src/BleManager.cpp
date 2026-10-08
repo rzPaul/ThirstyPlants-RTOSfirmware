@@ -1,36 +1,34 @@
 #include "Secrets.h"
 #include "BoardPins.h"
 #include "BleManager.h"
+#include "Debug.h"
 
-
-BleManager::credentialsCallbacks::credentialsCallbacks(BleManager *manager)
+BleManager::CredentialsCallbacks::CredentialsCallbacks(BleManager *manager)
 {
     _manager = manager;
 }
 
-void BleManager::credentialsCallbacks::onWrite(BLECharacteristic *pCharacteristic)
+void BleManager::CredentialsCallbacks::onWrite(BLECharacteristic *pCharacteristic)
 {
-    char credentialsAsString[128];
 
-    snprintf(credentialsAsString, sizeof(credentialsAsString), "%s", pCharacteristic->getValue().c_str());
-
-    Serial.printf("WiFI and Pass: %s \n", credentialsAsString); // debug
-
-    strlcpy(_manager->_receivedCredentials, credentialsAsString, sizeof(_manager->_receivedCredentials));
+    strlcpy(_manager->_receivedCredentials, pCharacteristic->getValue().c_str(), sizeof(_manager->_receivedCredentials));
     _manager->_newCredentialsReceived = true;
+
+    DEBUG_PRINTF("WiFI and Pass: %s \n", _manager->_receivedCredentials);
 
     parseCredentials();
 }
 
-void BleManager::credentialsCallbacks::parseCredentials()
+void BleManager::CredentialsCallbacks::parseCredentials()
 {
+    // Because the credentials come in this form "<SSID>;;<password>", they must be parsed in separate variables 
     char *separator = strstr(_manager->_receivedCredentials, CREDENTIALS_SEPARATOR);
 
     if (separator != nullptr)
     {
         separator[0] = '\0';
 
-        _manager->_wifiManager->setCredentials(_manager->_receivedCredentials, separator + 2);
+        _manager->_wifiManager->setCredentials(_manager->_receivedCredentials, separator + strlen(CREDENTIALS_SEPARATOR));
         _manager->_wifiManager->beginTask();
     }
 }
@@ -48,7 +46,7 @@ void BleManager::startBleTask(void *arg)
 
     if (_manager->_pCharacteristic != nullptr)
     {
-        Serial.println("Wi-Fi connected! Sending success confirmation to app..."); // debug
+        DEBUG_PRINTLN("Wi-Fi connected! Sending success confirmation to app..."); // debug
 
         _manager->_pCharacteristic->setValue("CONNECTED");
         _manager->_pCharacteristic->notify();
@@ -74,15 +72,16 @@ void BleManager::startBLE()
             BLECharacteristic::PROPERTY_WRITE |
             BLECharacteristic::PROPERTY_NOTIFY);
 
-    _callbacks = new credentialsCallbacks(this);
+    _callbacks = new CredentialsCallbacks(this);
     _pCharacteristic->setCallbacks(_callbacks);
     pService->start();
     _pServer->getAdvertising()->start();
 
-    Serial.println("Waiting for a client connection to notify...");
+    DEBUG_PRINTLN("Waiting for a client connection to notify...");
 
     _bleStarted = true;
 }
+
 void BleManager::stopBLE()
 {
     if (!_bleStarted)
@@ -100,13 +99,15 @@ void BleManager::stopBLE()
     _pServer = nullptr;
     _bleStarted = false;
 }
+
 void BleManager::setWiFi(WiFiManager *wifiManager)
 {
     _wifiManager = wifiManager;
 }
+
 void BleManager::beginTask()
 {
-    if (_bleStarted)
+    if (_bleTaskHandle != nullptr)
         return;
 
     xTaskCreate(
@@ -115,10 +116,10 @@ void BleManager::beginTask()
         4096,
         this,
         1,
-        nullptr);
+        &_bleTaskHandle);
 }
 
-bool BleManager::isStarted()
+bool BleManager::isBleStarted()
 {
     return _bleStarted;
 }

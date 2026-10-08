@@ -1,24 +1,22 @@
 #include "WiFiManager.h"
 #include "Secrets.h"
+#include "Debug.h"
 
-void WiFiManager::s_wifiTask(void *arg)
+void WiFiManager::startWifiTask(void *arg)
 {
     WiFiManager *_manager = static_cast<WiFiManager *>(arg);
-
+    // We create the name of the device that the router is seeing (ThirstyPlants:<MAC>)
     snprintf(_manager->_networkDisplayId, sizeof(_manager->_networkDisplayId), "ThirstyPlants:%s", g_macAddress);
 
     WiFi.mode(WIFI_STA);
-
+    
     WiFi.setHostname(_manager->_networkDisplayId);
 
     _manager->connectToWiFi();
 
     if (_manager->isConnected())
     {
-        if (_manager->_databaseManager != nullptr)
-        {
-            _manager->_databaseManager->beginTask();
-        }
+        _manager->_databaseManager->beginTask();
     }
 
     vTaskDelete(nullptr);
@@ -27,7 +25,7 @@ void WiFiManager::s_wifiTask(void *arg)
 void WiFiManager::connectToWiFi()
 {
     WiFi.disconnect(true);
-    WiFi.begin(_WiFiSSID, _WiFiPass);
+    WiFi.begin(_wifiSSID, _wifiPass);
 
     uint8_t attempts = 0;
 
@@ -57,40 +55,43 @@ void WiFiManager::setDatabase(DatabaseManager *databaseManager)
 
 void WiFiManager::setCredentials(const char *ssid, const char *password)
 {
-    strlcpy(_WiFiSSID, ssid, sizeof(_WiFiSSID));
-    strlcpy(_WiFiPass, password, sizeof(_WiFiPass));
+    strlcpy(_wifiSSID, ssid, sizeof(_wifiSSID));
+    strlcpy(_wifiPass, password, sizeof(_wifiPass));
 
-    Serial.println(_WiFiPass); // debug
-    Serial.println(_WiFiSSID); // debug
+    DEBUG_PRINTLN(_wifiPass); // debug
+    DEBUG_PRINTLN(_wifiSSID); // debug
 }
 
 void WiFiManager::beginTask()
 {
+    if (_wifiTaskHandle != nullptr)
+     return;
+
     xTaskCreate(
-        s_wifiTask,
+        startWifiTask,
         "WiFi Task",
         4096,
         this,
         1,
-        NULL);
+        &_wifiTaskHandle);
 }
 
 void WiFiManager::saveCredentials()
 {
-    preferences.begin("wifi", false);
-    preferences.putString("ssid", _WiFiSSID);
-    preferences.putString("pass", _WiFiPass);
-    preferences.end();
+    _preferences.begin("wifi", false);
+    _preferences.putString("ssid", _wifiSSID);
+    _preferences.putString("pass", _wifiPass);
+    _preferences.end();
 }
 
 bool WiFiManager::loadCredentials()
 {
-    preferences.begin("wifi", true);
+    _preferences.begin("wifi", true);
 
-    size_t ssidLen = preferences.getString("ssid", _WiFiSSID, sizeof(_WiFiSSID));
-    size_t passLen = preferences.getString("pass", _WiFiPass, sizeof(_WiFiPass));
+    size_t ssidLen = _preferences.getString("ssid", _wifiSSID, sizeof(_wifiSSID));
+    size_t passLen = _preferences.getString("pass", _wifiPass, sizeof(_wifiPass));
 
-    preferences.end();
+    _preferences.end();
 
     if (ssidLen > 0)
     {
@@ -104,12 +105,12 @@ bool WiFiManager::loadCredentials()
 
 void WiFiManager::clearCredentials()
 {
-    preferences.begin("wifi", false);
-    preferences.clear();
-    preferences.end();
+    _preferences.begin("wifi", false);
+    _preferences.clear();
+    _preferences.end();
 }
 
-bool isConnected()
+bool WiFiManager::isConnected()
 {
     return (WiFi.status() == WL_CONNECTED);
 }

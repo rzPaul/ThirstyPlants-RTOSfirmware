@@ -1,10 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include "SensorsManager.h"
 
-
-constexpr uint16_t moistureTimerMS = 5000; // debug
 constexpr uint16_t MAX_MOISTURE_RAW_VALUE = 4050;
 constexpr uint16_t MIN_MOISTURE_RAW_VALUE = 50;
 constexpr uint16_t REAL_MAX_MOISTURE_RAW = 3200;

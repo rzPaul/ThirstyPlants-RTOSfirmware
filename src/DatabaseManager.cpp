@@ -1,7 +1,9 @@
 #include "DatabaseManager.h"
 #include "Secrets.h"
 #include <Preferences.h>
-
+#include <addons/TokenHelper.h>
+#include <addons/RTDBHelper.h>
+#include "Debug.h"
 
 void DatabaseManager::s_databaseTask(void *arg)
     {
@@ -37,9 +39,9 @@ void DatabaseManager::setupFirebase()
 
         _config.token_status_callback = tokenStatusCallback;
         Firebase.begin(&_config, &_auth);
-        Firebase.reconnectWiFi(true);
+        Firebase.reconnectNetwork(true); 
 
-        Serial.println("Authenticating"); // debug
+        DEBUG_PRINTLN("Authenticating"); // debug
         
         uint8_t retries = 0;
 
@@ -47,21 +49,22 @@ void DatabaseManager::setupFirebase()
         {
             vTaskDelay(pdMS_TO_TICKS(500));
             retries++;
-            Serial.print(".");
+            DEBUG_PRINT("."); // debug
         }
 
-        Serial.print("Authenticated! Logged into UID: "); // debug
-        Serial.print(_auth.token.uid.c_str());            // debug
+        DEBUG_PRINT("Authenticated! Logged into UID: "); // debug
+        DEBUG_PRINT(_auth.token.uid.c_str());            // debug
 
         if (_auth.token.uid != "" && Firebase.ready())
         {
 
-            Serial.println("\n Authenticated successfully!"); // debug
-            Serial.print(" Device UID: ");                    // debug
-            Serial.println(_auth.token.uid.c_str());          // debug
+            DEBUG_PRINTLN("\n Authenticated successfully!"); // debug
+            DEBUG_PRINT(" Device UID: ");                    // debug
+            DEBUG_PRINTLN(_auth.token.uid.c_str());          // debug
 
             _isAuthenticated = true;
 
+// Parse the Realtime Database paths
             snprintf(_databaseUserPath, sizeof(_databaseUserPath), "users/%s", _auth.token.uid.c_str()); 
             snprintf(_databaseDevicePath, sizeof(_databaseDevicePath), "%s/%s", _databaseUserPath, g_macAddress);
             snprintf(_databasePingPath, sizeof(_databasePingPath), "%s/%s", _databaseDevicePath, "online");
@@ -125,11 +128,11 @@ void DatabaseManager::setupFirebase()
     {
         if (Firebase.RTDB.setBool(&_fbdo, _databasePingPath, true))
         {
-            Serial.println("Succes"); // debug
+            DEBUG_PRINTLN("Succes"); // debug
         }
         else
         {
-            Serial.println(_fbdo.errorReason()); // debug
+            DEBUG_PRINTLN(_fbdo.errorReason()); // debug
         }
     }
 
